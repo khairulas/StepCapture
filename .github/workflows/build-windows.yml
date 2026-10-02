@@ -1,0 +1,39 @@
+name: Build Windows exe
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt pyinstaller
+      - name: Run tests
+        working-directory: tests
+        run: |
+          python test_session.py
+          python test_export.py
+      - name: Build exe
+        run: >
+          python -m PyInstaller --noconfirm --clean --noconsole --onefile --name StepCapture
+          --hidden-import pynput.keyboard._win32 --hidden-import pynput.mouse._win32
+          --collect-data docx run.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StepCapture-windows
+          path: dist/StepCapture.exe
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/StepCapture.exe
